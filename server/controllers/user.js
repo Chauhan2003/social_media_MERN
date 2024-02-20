@@ -19,8 +19,6 @@ export const registerUser = async (req, res, next) => {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-    
-        existingUser.password = null;
 
         const newUser = await User.create({
             name,
@@ -30,6 +28,19 @@ export const registerUser = async (req, res, next) => {
                 public_id: "sample_id",
                 url: "sampleurl"
             }
+        });
+
+        const token = generateToken({
+            userId: newUser._id
+        });
+
+        res.status(201).cookie("token", token, {
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 Days
+            httpOnly: true
+        }).json({
+            success: true,
+            newUser,
+            token
         });
     } catch(err) {
         next(err);
@@ -45,7 +56,7 @@ export const loginUser = async (req, res, next) => {
         }
 
         // Find the user by email
-        const userExist = await User.findOne({ email });
+        const userExist = await User.findOne({ email }).select("+password");
 
         // Check if the user exists
         if (!userExist) {
@@ -63,7 +74,10 @@ export const loginUser = async (req, res, next) => {
             userId: userExist._id
         });
 
-        res.status(200).json({
+        res.status(201).cookie("token", token, {
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 Days
+            httpOnly: true
+        }).json({
             success: true,
             userExist,
             token
