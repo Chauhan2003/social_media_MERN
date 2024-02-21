@@ -105,3 +105,22 @@ export const deletePost = async (req, res, next) => {
         next(err);
     }
 };
+
+export const getPostOfFollowing = async(req, res, next) => {
+    try{
+        const user = await User.findById(req.user._id);
+        
+        const posts = await Post.find({
+            owner: {
+                $in: user.following,
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            posts
+        })
+    } catch(err){
+        next(err);
+    }
+}
