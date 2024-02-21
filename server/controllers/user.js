@@ -87,8 +87,8 @@ export const loginUser = async (req, res, next) => {
     }
 }
 
-export const logOut = async(req, res, next) => {
-    try{
+export const logOut = async (req, res, next) => {
+    try {
         res.status(200).cookie("token", null, {
             expires: new Date(Date.now()),
             httpOnly: true
@@ -96,7 +96,7 @@ export const logOut = async(req, res, next) => {
             success: true,
             message: "Logout"
         })
-    } catch(err){
+    } catch (err) {
         next(err);
     }
 }
@@ -170,3 +170,60 @@ export const followUser = async (req, res, next) => {
         next(err);
     }
 }
+
+// PROFILE ROUTES:
+
+export const updateProfile = async (req, res, next) => {
+    try {
+        // Extract fields from the request body
+        const { name, email, oldPassword, newPassword } = req.body;
+
+        if (oldPassword === newPassword) {
+            return next(errorHandler(400, "New password must be different from the old password"));
+        }
+
+        // Find the user by ID
+        const user = await User.findById(req.user._id).select("+password");
+
+        // Construct the update object based on the fields provided in the request
+        const updateFields = {};
+
+        if (name) {
+            updateFields.name = name;
+        }
+
+        if (email) {
+            updateFields.email = email;
+        }
+
+        // Check and update the password if oldPassword and newPassword are provided
+        if (oldPassword && newPassword) {
+            const isMatch = await bcrypt.compare(oldPassword, user.password);
+
+            // If old password doesn't match, return a 401 Unauthorized error
+            if (!isMatch) {
+                return next(errorHandler(401, "Wrong Old Password!"));
+            }
+
+            // Hash the new password before updating it in the updateFields object
+            const newUpdatedPassword = await bcrypt.hash(newPassword, 10);
+            updateFields.password = newUpdatedPassword;
+        }
+
+        // Use findOneAndUpdate to find the user by ID and update the profile fields
+        const updatedUser = await User.findOneAndUpdate(
+            { _id: req.user._id },
+            { $set: updateFields },
+            { new: true }
+        );
+
+        // Respond with the updated user information
+        res.status(200).json({
+            success: true,
+            message: "Profile updated successfully"
+        });
+    } catch (err) {
+        // Pass any errors to the error handling middleware
+        next(err);
+    }
+};
