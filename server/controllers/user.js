@@ -42,7 +42,7 @@ export const registerUser = async (req, res, next) => {
             newUser,
             token
         });
-    } catch(err) {
+    } catch (err) {
         next(err);
     }
 }
@@ -62,7 +62,7 @@ export const loginUser = async (req, res, next) => {
         if (!userExist) {
             return next(errorHandler(404, "User not found"));
         }
-        
+
         // Compare passwords using bcrypt
         const validPassword = await bcrypt.compare(password, userExist.password);
 
@@ -82,7 +82,77 @@ export const loginUser = async (req, res, next) => {
             userExist,
             token
         });
-    } catch(err) {
+    } catch (err) {
+        next(err);
+    }
+}
+
+export const followUser = async (req, res, next) => {
+    try {
+        const userToFollow = await User.findById(req.params.id);
+
+        if (!userToFollow) {
+            return next(errorHandler(404, "User not found"));
+        }
+
+        const alreadyFollow = await User.exists({
+            _id: req.params.id,
+            followers: req.user._id
+        })
+
+        if (!alreadyFollow) {
+            await User.findOneAndUpdate(
+                { _id: req.params.id },
+                {
+                    $push: {
+                        followers: req.user._id
+                    }
+                },
+                { new: true }
+            )
+
+            await User.findByIdAndUpdate(
+                { _id: req.user._id },
+                {
+                    $push: {
+                        following: req.params.id
+                    }
+                },
+                { new: true }
+            )
+
+            res.status(201).json({
+                success: true,
+                message: "You follow user"
+            })
+        }
+        else {
+            await User.findOneAndUpdate(
+                { _id: req.params.id },
+                {
+                    $pull: {
+                        followers: req.user._id
+                    }
+                },
+                { new: true }
+            )
+
+            await User.findByIdAndUpdate(
+                { _id: req.user._id },
+                {
+                    $pull: {
+                        following: req.params.id
+                    }
+                },
+                { new: true }
+            )
+
+            res.status(201).json({
+                success: true,
+                message: "You Unfollow user"
+            })
+        }
+    } catch (err) {
         next(err);
     }
 }
