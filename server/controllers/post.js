@@ -63,3 +63,45 @@ export const toggleLike = async (req, res, next) => {
         next(err);
     }
 };
+
+
+export const deletePost = async (req, res, next) => {
+    try {
+        const postId = req.params.id;
+
+        const post = await Post.findById(postId);
+
+        if(!post){
+            return next(errorHandler(404, "Post not found"));
+        }
+
+        if(post.owner.toString() !== req.user._id.toString()){
+            return next(errorHandler(401, "Unauthorized"));
+        }
+
+        // Find the post by ID and delete it
+        const deletedPost = await Post.findOneAndDelete({
+            _id: postId,
+            owner: req.user._id,
+        });
+
+        // Check if the post exists
+        if (!deletedPost) {
+            return next(errorHandler(404, "Post not found or unauthorized"));
+        }
+
+        // Remove the post ID from the user's posts array using findOneAndUpdate
+        await User.findOneAndUpdate(
+            { _id: req.user._id },
+            { $pull: { post: postId } },
+            { new: true }
+        );
+
+        res.status(201).json({
+            success: true,
+            message: "Post deleted"
+        });
+    } catch (err) {
+        next(err);
+    }
+};
